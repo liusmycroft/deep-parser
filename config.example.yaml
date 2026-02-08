@@ -1,0 +1,101 @@
+# Example configuration file for RAG Testing System
+# Copy this file to config.yaml and adjust values as needed
+
+database:
+  elasticsearch:
+    hosts:
+      - http://localhost:9200
+    index_name: rag_chunks
+    shards: 1
+    replicas: 1
+    refresh_interval: "1s"
+    # username: elastic
+    # password: changeme
+
+  milvus:
+    host: localhost
+    port: 19530
+    collection_name: rag_chunks
+    index_type: HNSW  # Options: HNSW, IVF_FLAT, IVF_SQ8
+    metric_type: COSINE  # Options: COSINE, L2, IP
+    nlist: 1024
+    # username: root
+    # password: Milvus
+
+  clickhouse:
+    host: localhost
+    port: 9000
+    database: rag_system
+    table_name: rag_chunks
+    engine: MergeTree
+    # partition_key: toYYYYMM(created_at)
+    username: default
+    password: ""
+
+  hbase:
+    host: localhost
+    port: 9090
+    table_name: rag_documents
+    column_family: cf
+
+embedding:
+  model_name: sentence-transformers/all-MiniLM-L6-v2
+  model_type: sentence-transformers  # Options: sentence-transformers, openai
+  # api_endpoint: https://api.openai.com/v1/embeddings
+  # api_key: sk-...
+  batch_size: 32
+  embedding_dim: 384
+
+processing:
+  chunk_size: 512
+  chunk_overlap: 50
+  chunk_separator: "\n\n"
+  max_document_size: 5000
+  # image_to_text_api_url: http://localhost:8080/convert
+  # image_to_text_api_key: your-api-key
+  image_placeholder_text: "[Image description unavailable]"
+  header_patterns:
+    - "^Date:.*$"
+    - "^Author:.*$"
+    - "^Navigation:.*$"
+    - "^\\[.*\\]\\(.*\\)$"
+  footer_patterns:
+    - "^Copyright.*$"
+    - "^©.*$"
+    - "^Advertisement.*$"
+    - "^Related links:.*$"
+
+logging:
+  level: INFO  # Options: DEBUG, INFO, WARNING, ERROR
+  format: json  # Options: json, text
+  output_file: logs/rag_system.log
+  enable_console: true
+
+retrieval:
+  default_top_k: 10
+  default_score_threshold: 0.0
+  elasticsearch_hybrid_weight: 0.5  # Weight for BM25 vs vector search
+
+performance:
+  default_qps: 10
+  default_duration: 60
+  default_concurrency: 10
+  warmup_duration: 5
+
+workflow:
+  dag_id: rag_etl_pipeline
+  schedule_interval: null  # Cron expression or null for manual trigger
+  max_retries: 3
+  retry_delay: 300
+  email_on_failure: false
+  email_recipients: []
+
+web:
+  host: 0.0.0.0
+  port: 8000
+  enable_cors: true
+  cors_origins:
+    - "*"
+  enable_auth: false
+  # jwt_secret: your-secret-key
+  jwt_algorithm: HS256
