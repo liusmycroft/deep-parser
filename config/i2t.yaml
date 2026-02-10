@@ -1,0 +1,5 @@
+enabled: true
+provider: openai
+timeout_sec: 30
+max_retries: 3
+fallback_on_error: skip

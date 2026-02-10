@@ -1,0 +1,86 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.backends"
+
+[project]
+name = "deep-parser"
+version = "1.0.0"
+description = "End-to-end RAG content processing system for article ingestion, ETL, indexing and retrieval"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Deep Parser Team"},
+]
+
+dependencies = [
+    # Web framework
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "python-multipart>=0.0.6",
+
+    # Database
+    "sqlalchemy[asyncio]>=2.0.23",
+    "aiomysql>=0.2.0",
+    "alembic>=1.13.0",
+
+    # Configuration
+    "pyyaml>=6.0.1",
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
+    "python-dotenv>=1.0.0",
+
+    # Elasticsearch
+    "elasticsearch[async]>=8.11.0",
+
+    # Milvus
+    "pymilvus>=2.3.4",
+
+    # ClickHouse
+    "clickhouse-connect>=0.6.0",
+
+    # LLM / Embedding
+    "openai>=1.6.0",
+    "tiktoken>=0.5.2",
+    "httpx>=0.25.0",
+
+    # ETL utilities
+    "chardet>=5.2.0",
+
+    # Evaluation
+    "ragas>=0.1.0",
+
+    # Load testing
+    "locust>=2.20.0",
+
+    # Airflow (optional, installed separately in production)
+    # "apache-airflow>=2.8.0",
+
+    # Utilities
+    "aiofiles>=23.2.0",
+    "python-jose>=3.3.0",
+    "loguru>=0.7.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.1.0",
+    "httpx>=0.25.0",
+    "ruff>=0.1.0",
+]
+airflow = [
+    "apache-airflow>=2.8.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/deep_parser"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120

@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Upload - Deep Parser{% endblock %}
+{% block content %}
+<div class="row g-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header"><h5 class="mb-0"><i class="bi bi-file-earmark-zip"></i> Upload ZIP</h5></div>
+            <div class="card-body">
+                <p class="text-muted">Upload a ZIP file containing one Markdown file and an assets/ directory.</p>
+                <div class="upload-zone" id="zipZone" ondrop="handleZipDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
+                    <i class="bi bi-cloud-arrow-up" style="font-size: 3rem; color: #667eea;"></i>
+                    <p class="mt-2 mb-0">Drag & drop ZIP file here or click to browse</p>
+                    <input type="file" id="zipInput" accept=".zip" style="display:none" onchange="uploadZip()">
+                </div>
+                <div id="zipResult" class="mt-3" style="display:none;">
+                    <h6>Upload Result:</h6>
+                    <pre id="zipResultContent"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header"><h5 class="mb-0"><i class="bi bi-filetype-md"></i> Upload Markdown</h5></div>
+            <div class="card-body">
+                <p class="text-muted">Upload one or more Markdown files directly.</p>
+                <div class="upload-zone" id="mdZone" ondrop="handleMdDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
+                    <i class="bi bi-file-earmark-text" style="font-size: 3rem; color: #764ba2;"></i>
+                    <p class="mt-2 mb-0">Drag & drop Markdown files here or click to browse</p>
+                    <input type="file" id="mdInput" accept=".md,.markdown" multiple style="display:none" onchange="uploadMarkdown()">
+                </div>
+                <div id="mdResult" class="mt-3" style="display:none;">
+                    <h6>Upload Result:</h6>
+                    <pre id="mdResultContent"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('zipZone').addEventListener('click', () => document.getElementById('zipInput').click());
+document.getElementById('mdZone').addEventListener('click', () => document.getElementById('mdInput').click());
+
+function handleDragOver(event) { event.preventDefault(); event.currentTarget.classList.add('dragover'); }
+function handleDragLeave(event) { event.currentTarget.classList.remove('dragover'); }
+
+function handleZipDrop(event) {
+    event.preventDefault();
+    event.currentTarget.classList.remove('dragover');
+    const files = event.dataTransfer.files;
+    if (files.length > 0) { document.getElementById('zipInput').files = files; uploadZip(); }
+}
+
+function handleMdDrop(event) {
+    event.preventDefault();
+    event.currentTarget.classList.remove('dragover');
+    const files = event.dataTransfer.files;
+    if (files.length > 0) { document.getElementById('mdInput').files = files; uploadMarkdown(); }
+}
+
+async function uploadZip() {
+    const fileInput = document.getElementById('zipInput');
+    if (!fileInput.files.length) return;
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+    try {
+        const response = await fetch('/api/upload/zip', { method: 'POST', body: formData });
+        const data = await response.json();
+        document.getElementById('zipResult').style.display = 'block';
+        document.getElementById('zipResultContent').textContent = formatJSON(data);
+        if (response.ok) showAlert('ZIP uploaded successfully!');
+        else showAlert(data.detail || 'Upload failed', 'danger');
+    } catch (error) {
+        showAlert('Upload error: ' + error.message, 'danger');
+    }
+}
+
+async function uploadMarkdown() {
+    const fileInput = document.getElementById('mdInput');
+    if (!fileInput.files.length) return;
+    const formData = new FormData();
+    for (const file of fileInput.files) formData.append('files', file);
+    try {
+        const response = await fetch('/api/upload/markdown', { method: 'POST', body: formData });
+        const data = await response.json();
+        document.getElementById('mdResult').style.display = 'block';
+        document.getElementById('mdResultContent').textContent = formatJSON(data);
+        if (response.ok) showAlert('Markdown files uploaded successfully!');
+        else showAlert(data.detail || 'Upload failed', 'danger');
+    } catch (error) {
+        showAlert('Upload error: ' + error.message, 'danger');
+    }
+}
+</script>
+{% endblock %}

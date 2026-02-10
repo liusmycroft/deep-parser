@@ -1,0 +1,4 @@
+enable_es_text: true
+enable_es_vector: false
+enable_milvus: true
+enable_clickhouse: true

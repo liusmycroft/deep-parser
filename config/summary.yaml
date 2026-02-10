@@ -1,0 +1,10 @@
+enabled: false
+window_size: 2
+layers: 3
+max_tokens_summary: 500
+llm_provider: openai
+prompt_template: |
+  Summarize the following text segments into a concise summary.
+  Keep the summary under {max_tokens} tokens.
+  Text segments:
+  {text}

@@ -1,0 +1,9 @@
+separators:
+  - "\n## "
+  - "\n### "
+  - "\n\n"
+  - "\n"
+min_tokens: 200
+max_tokens: 800
+merge_strategy: prefer_prev
+tokenizer: cl100k_base

@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block title %}Search - Deep Parser{% endblock %}
+{% block content %}
+<div class="row g-4">
+    <div class="col-md-5">
+        <div class="card">
+            <div class="card-header"><h5 class="mb-0"><i class="bi bi-search"></i> Retrieval Debug</h5></div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Query</label>
+                    <textarea id="queryInput" class="form-control" rows="3" placeholder="Enter your search query..."></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Top K</label>
+                    <input type="number" id="topK" class="form-control" value="20" min="1" max="100">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Routes</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="esTextRoute" checked>
+                        <label class="form-check-label" for="esTextRoute">ES Text Search</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="vectorRoute" checked>
+                        <label class="form-check-label" for="vectorRoute">Vector Search</label>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Vector Backend</label>
+                    <select id="vectorBackend" class="form-select">
+                        <option value="milvus">Milvus</option>
+                        <option value="es">Elasticsearch</option>
+                        <option value="clickhouse">ClickHouse</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Query Rewrite</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="rewriteEnabled">
+                        <label class="form-check-label" for="rewriteEnabled">Enable Rewrite</label>
+                    </div>
+                    <select id="rewriteMethod" class="form-select form-select-sm mt-1">
+                        <option value="keywords">Keywords</option>
+                        <option value="llm">LLM</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Fusion Method</label>
+                    <select id="fusionMethod" class="form-select">
+                        <option value="weighted_sum">Weighted Sum</option>
+                        <option value="rrf">RRF (Reciprocal Rank Fusion)</option>
+                    </select>
+                </div>
+                <div class="mb-3 row" id="weightsRow">
+                    <div class="col-6">
+                        <label class="form-label small">ES Text Weight</label>
+                        <input type="number" id="esWeight" class="form-control form-control-sm" value="0.5" step="0.1" min="0" max="1">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small">Vector Weight</label>
+                        <input type="number" id="vectorWeight" class="form-control form-control-sm" value="0.5" step="0.1" min="0" max="1">
+                    </div>
+                </div>
+                <button class="btn btn-primary w-100" onclick="executeSearch()"><i class="bi bi-search"></i> Search</button>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-7">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-list-ol"></i> Results</h5>
+                <span id="resultCount" class="badge bg-secondary">0 results</span>
+            </div>
+            <div class="card-body result-card" id="searchResults">
+                <div class="text-center text-muted py-5">Enter a query and click Search</div>
+            </div>
+        </div>
+        <div class="card mt-3" id="queryUsedCard" style="display:none;">
+            <div class="card-header"><h6 class="mb-0">Query Used</h6></div>
+            <div class="card-body"><pre id="queryUsedContent" class="mb-0"></pre></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function executeSearch() {
+    const query = document.getElementById('queryInput').value.trim();
+    if (!query) { showAlert('Please enter a query', 'warning'); return; }
+
+    const requestBody = {
+        query: query,
+        top_k: parseInt(document.getElementById('topK').value),
+        routes: {
+            es_text: document.getElementById('esTextRoute').checked,
+            vector: {
+                enabled: document.getElementById('vectorRoute').checked,
+                backend: document.getElementById('vectorBackend').value
+            }
+        },
+        rewrite: {
+            enabled: document.getElementById('rewriteEnabled').checked,
+            method: document.getElementById('rewriteMethod').value
+        },
+        fusion: {
+            method: document.getElementById('fusionMethod').value,
+            weights: {
+                es_text: parseFloat(document.getElementById('esWeight').value),
+                vector: parseFloat(document.getElementById('vectorWeight').value)
+            }
+        }
+    };
+
+    const resultsDiv = document.getElementById('searchResults');
+    resultsDiv.innerHTML = '<div class="text-center py-3"><div class="spinner-border text-primary"></div><p class="mt-2">Searching...</p></div>';
+
+    try {
+        const response = await fetch('/api/retrieve', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody)
+        });
+        const data = await response.json();
+
+        if (data.query_used) {
+            document.getElementById('queryUsedCard').style.display = 'block';
+            document.getElementById('queryUsedContent').textContent = data.query_used;
+        }
+
+        const results = data.results || [];
+        document.getElementById('resultCount').textContent = results.length + ' results';
+
+        if (!results.length) {
+            resultsDiv.innerHTML = '<div class="text-center text-muted py-5">No results found</div>';
+            return;
+        }
+
+        resultsDiv.innerHTML = results.map((r, i) => `
+            <div class="border rounded p-3 mb-2">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <span class="badge bg-primary">#${i + 1}</span>
+                    <div class="text-end">
+                        <span class="badge bg-dark">Score: ${(r.score || 0).toFixed(4)}</span>
+                        ${r.route_scores ? Object.entries(r.route_scores).map(([k, v]) => `<span class="badge bg-outline-secondary border ms-1">${k}: ${v.toFixed(4)}</span>`).join('') : ''}
+                    </div>
+                </div>
+                <p class="mb-1 small">${(r.content || '').substring(0, 300)}${(r.content || '').length > 300 ? '...' : ''}</p>
+                <div class="mt-2">
+                    <small class="text-muted">
+                        chunk: <code>${(r.chunk_id || '').substring(0, 8)}</code> |
+                        doc: <code>${(r.doc_id || '').substring(0, 8)}</code>
+                        ${r.metadata ? ` | level: ${r.metadata.level} | order: ${r.metadata.order_index}` : ''}
+                    </small>
+                    ${r.keywords && r.keywords.length ? `<div class="mt-1">${r.keywords.map(k => `<span class="badge bg-light text-dark border me-1">${k}</span>`).join('')}</div>` : ''}
+                </div>
+            </div>
+        `).join('');
+    } catch (error) {
+        resultsDiv.innerHTML = `<div class="alert alert-danger">Search failed: ${error.message}</div>`;
+    }
+}
+</script>
+{% endblock %}

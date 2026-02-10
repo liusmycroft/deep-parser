@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block title %}Load Test - Deep Parser{% endblock %}
+{% block content %}
+<div class="row g-4">
+    <div class="col-md-5">
+        <div class="card">
+            <div class="card-header"><h5 class="mb-0"><i class="bi bi-speedometer2"></i> Load Test Configuration</h5></div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Test Queries (one per line)</label>
+                    <textarea id="ltQueries" class="form-control" rows="6" placeholder="What is machine learning?
+How does RAG work?
+Explain transformer architecture"></textarea>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <label class="form-label fw-bold">Concurrency</label>
+                        <input type="number" id="ltConcurrency" class="form-control" value="10" min="1" max="200">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label fw-bold">Duration (sec)</label>
+                        <input type="number" id="ltDuration" class="form-control" value="60" min="5" max="600">
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Vector Backend</label>
+                    <select id="ltBackend" class="form-select">
+                        <option value="milvus">Milvus</option>
+                        <option value="es">Elasticsearch</option>
+                        <option value="clickhouse">ClickHouse</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary w-100" onclick="runLoadTest()" id="ltBtn">
+                    <i class="bi bi-play-fill"></i> Start Load Test
+                </button>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-7">
+        <div class="card">
+            <div class="card-header"><h5 class="mb-0"><i class="bi bi-graph-up"></i> Load Test Results</h5></div>
+            <div class="card-body" id="ltResults">
+                <div class="text-center text-muted py-5">Configure and start a load test to see results</div>
+            </div>
+        </div>
+        <div class="card mt-3" id="ltHistoryCard" style="display:none;">
+            <div class="card-header"><h5 class="mb-0"><i class="bi bi-clock-history"></i> Comparison History</h5></div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead><tr><th>Backend</th><th>QPS</th><th>TP50</th><th>TP90</th><th>TP99</th><th>Avg</th><th>Errors</th></tr></thead>
+                        <tbody id="ltHistoryBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const testHistory = [];
+
+async function runLoadTest() {
+    const queriesText = document.getElementById('ltQueries').value.trim();
+    if (!queriesText) { showAlert('Please enter test queries', 'warning'); return; }
+
+    const queries = queriesText.split('\n').filter(q => q.trim());
+    const concurrency = parseInt(document.getElementById('ltConcurrency').value);
+    const duration = parseInt(document.getElementById('ltDuration').value);
+    const backend = document.getElementById('ltBackend').value;
+
+    const btn = document.getElementById('ltBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Running...';
+
+    const resultsDiv = document.getElementById('ltResults');
+    resultsDiv.innerHTML = '<div class="text-center py-3"><div class="spinner-border text-primary"></div><p class="mt-2">Running load test... This may take a while.</p></div>';
+
+    try {
+        const response = await fetch('/api/loadtest', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                queries: queries,
+                concurrency: concurrency,
+                duration_seconds: duration,
+                backend: backend,
+                retrieval_params: {
+                    routes: { es_text: false, vector: { enabled: true, backend: backend } },
+                    fusion: { method: "weighted_sum", weights: { vector: 1.0 } }
+                }
+            })
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+            resultsDiv.innerHTML = `<div class="alert alert-danger">${data.detail || 'Load test failed'}</div>`;
+            return;
+        }
+
+        const result = data.result || data;
+        resultsDiv.innerHTML = `
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="border rounded p-3 text-center">
+                        <div class="small text-muted">QPS</div>
+                        <div class="fs-3 fw-bold text-primary">${(result.qps || 0).toFixed(1)}</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="border rounded p-3 text-center">
+                        <div class="small text-muted">Avg Response</div>
+                        <div class="fs-3 fw-bold text-success">${(result.avg_response_ms || 0).toFixed(0)}ms</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="border rounded p-3 text-center">
+                        <div class="small text-muted">Error Rate</div>
+                        <div class="fs-3 fw-bold ${(result.error_rate || 0) > 0.05 ? 'text-danger' : 'text-success'}">${((result.error_rate || 0) * 100).toFixed(1)}%</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="border rounded p-3 text-center">
+                        <div class="small text-muted">TP50</div>
+                        <div class="fs-5 fw-bold">${(result.tp50_ms || 0).toFixed(0)}ms</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="border rounded p-3 text-center">
+                        <div class="small text-muted">TP90</div>
+                        <div class="fs-5 fw-bold">${(result.tp90_ms || 0).toFixed(0)}ms</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="border rounded p-3 text-center">
+                        <div class="small text-muted">TP99</div>
+                        <div class="fs-5 fw-bold">${(result.tp99_ms || 0).toFixed(0)}ms</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="border rounded p-3 text-center">
+                        <div class="small text-muted">Total Requests</div>
+                        <div class="fs-5 fw-bold">${result.total_requests || 0}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-2 text-muted small">Backend: ${backend} | Duration: ${result.duration_seconds || duration}s | Concurrency: ${concurrency}</div>
+        `;
+
+        testHistory.push({ backend, ...result });
+        if (testHistory.length > 1) {
+            document.getElementById('ltHistoryCard').style.display = 'block';
+            document.getElementById('ltHistoryBody').innerHTML = testHistory.map(h => `
+                <tr>
+                    <td><span class="badge bg-info">${h.backend}</span></td>
+                    <td>${(h.qps || 0).toFixed(1)}</td>
+                    <td>${(h.tp50_ms || 0).toFixed(0)}ms</td>
+                    <td>${(h.tp90_ms || 0).toFixed(0)}ms</td>
+                    <td>${(h.tp99_ms || 0).toFixed(0)}ms</td>
+                    <td>${(h.avg_response_ms || 0).toFixed(0)}ms</td>
+                    <td>${((h.error_rate || 0) * 100).toFixed(1)}%</td>
+                </tr>
+            `).join('');
+        }
+    } catch (error) {
+        resultsDiv.innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-play-fill"></i> Start Load Test';
+    }
+}
+</script>
+{% endblock %}

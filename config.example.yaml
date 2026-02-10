@@ -1,0 +1,90 @@
+# Deep Parser Configuration Example
+# Copy this file to config.yaml and modify as needed
+
+clean:
+  remove_regex:
+    - '^\s*>\s*关注.*'
+    - '^\s*>\s*点击.*关注.*'
+    - '^\s*原创.*公众号.*'
+    - '^\s*作者[：:]\s*\S+\s*$'
+    - '^\s*发布[于时日][：:]\s*\d{4}.*$'
+    - '^\s*版权声明.*$'
+    - '^\s*本文[来由].*转载.*$'
+    - '^\s*---\s*$'
+  remove_contains:
+    - "点击关注"
+    - "扫码关注"
+    - "长按识别"
+    - "阅读原文"
+    - "点赞在看"
+    - "转发分享"
+  min_length_after_clean: 200
+
+i2t:
+  enabled: true
+  provider: openai
+  timeout_sec: 30
+  max_retries: 3
+  fallback_on_error: skip  # skip | empty | fail
+
+split:
+  separators:
+    - "\n## "
+    - "\n### "
+    - "\n\n"
+    - "\n"
+  min_tokens: 200
+  max_tokens: 800
+  merge_strategy: prefer_prev  # prefer_prev | prefer_next
+  tokenizer: cl100k_base
+
+keywords:
+  enabled: true
+  top_n: 8
+  llm_provider: openai
+  prompt_template: |
+    Extract the top {top_n} keywords from the following text.
+    Return a JSON array of strings, e.g. ["keyword1", "keyword2"].
+    Text:
+    {text}
+  timeout_sec: 30
+  max_retries: 2
+
+qa:
+  enabled: true
+  top_n: 3
+  llm_provider: openai
+  prompt_template: |
+    Based on the following text, generate {top_n} question-answer pairs.
+    Return a JSON array of objects with "q" and "a" fields.
+    Example: [{"q": "What is X?", "a": "X is ..."}]
+    Text:
+    {text}
+  timeout_sec: 30
+  max_retries: 2
+
+summary:
+  enabled: false
+  window_size: 2
+  layers: 3
+  max_tokens_summary: 500
+  llm_provider: openai
+  prompt_template: |
+    Summarize the following text segments into a concise summary.
+    Keep the summary under {max_tokens} tokens.
+    Text segments:
+    {text}
+
+embed:
+  provider: openai
+  model: text-embedding-3-small
+  dim: 1536
+  batch_size: 32
+  timeout_sec: 60
+  max_retries: 3
+
+index:
+  enable_es_text: true
+  enable_es_vector: false
+  enable_milvus: true
+  enable_clickhouse: true

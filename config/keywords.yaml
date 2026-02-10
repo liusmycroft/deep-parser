@@ -1,0 +1,10 @@
+enabled: true
+top_n: 8
+llm_provider: openai
+prompt_template: |
+  Extract the top {top_n} keywords from the following text.
+  Return a JSON array of strings, e.g. ["keyword1", "keyword2"].
+  Text:
+  {text}
+timeout_sec: 30
+max_retries: 2

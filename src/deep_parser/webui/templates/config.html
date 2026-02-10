@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Config - Deep Parser{% endblock %}
+{% block content %}
+<div class="row g-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-gear"></i> Pipeline Configuration</h5>
+                <button class="btn btn-sm btn-light" onclick="loadConfig()"><i class="bi bi-arrow-clockwise"></i> Reload</button>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Configuration (YAML/JSON)</label>
+                    <textarea id="configEditor" class="form-control font-monospace" rows="20" style="font-size:0.85rem;"></textarea>
+                </div>
+                <button class="btn btn-primary" onclick="saveConfig()"><i class="bi bi-save"></i> Save &amp; Activate</button>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header"><h5 class="mb-0"><i class="bi bi-clock-history"></i> Config Versions</h5></div>
+            <div class="card-body">
+                <div id="versionsList" class="list-group list-group-flush">
+                    <div class="text-center text-muted">Loading...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function loadConfig() {
+    try {
+        const response = await fetch('/api/config');
+        const data = await response.json();
+        document.getElementById('configEditor').value = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+    } catch (error) { showAlert('Failed to load config: ' + error.message, 'danger'); }
+}
+
+async function saveConfig() {
+    const content = document.getElementById('configEditor').value;
+    try {
+        let configData;
+        try { configData = JSON.parse(content); } catch { configData = { raw: content }; }
+        const response = await fetch('/api/config', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(configData)
+        });
+        if (response.ok) { showAlert('Configuration saved successfully!'); loadVersions(); }
+        else { const err = await response.json(); showAlert(err.detail || 'Save failed', 'danger'); }
+    } catch (error) { showAlert('Save error: ' + error.message, 'danger'); }
+}
+
+async function loadVersions() {
+    try {
+        const response = await fetch('/api/config/versions');
+        const data = await response.json();
+        const versions = data.versions || data || [];
+        const container = document.getElementById('versionsList');
+        if (!versions.length) { container.innerHTML = '<div class="text-center text-muted">No versions</div>'; return; }
+        container.innerHTML = versions.map(v => `
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                    <small class="text-muted">${v.version_id || v.id || ''}</small>
+                    ${v.is_active ? '<span class="badge bg-success ms-2">Active</span>' : ''}
+                    <br><small>${v.created_at ? new Date(v.created_at).toLocaleString() : ''}</small>
+                </div>
+                ${!v.is_active ? `<button class="btn btn-sm btn-outline-primary" onclick="activateVersion('${v.version_id || v.id}')">Activate</button>` : ''}
+            </div>
+        `).join('');
+    } catch (error) { console.error('Failed to load versions:', error); }
+}
+
+async function activateVersion(versionId) {
+    try {
+        const response = await fetch(`/api/config/versions/${versionId}/activate`, { method: 'POST' });
+        if (response.ok) { showAlert('Version activated!'); loadConfig(); loadVersions(); }
+        else showAlert('Activation failed', 'danger');
+    } catch (error) { showAlert('Error: ' + error.message, 'danger'); }
+}
+
+loadConfig();
+loadVersions();
+</script>
+{% endblock %}

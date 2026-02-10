@@ -1,0 +1,11 @@
+enabled: true
+top_n: 3
+llm_provider: openai
+prompt_template: |
+  Based on the following text, generate {top_n} question-answer pairs.
+  Return a JSON array of objects with "q" and "a" fields.
+  Example: [{"q": "What is X?", "a": "X is ..."}]
+  Text:
+  {text}
+timeout_sec: 30
+max_retries: 2

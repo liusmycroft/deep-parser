@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Deep Parser{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .navbar-brand { font-weight: 700; letter-spacing: 1px; }
+        .card { border: none; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-radius: 12px; }
+        .card-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px 12px 0 0 !important; }
+        .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; }
+        .btn-primary:hover { background: linear-gradient(135deg, #5a6fd6 0%, #6a4292 100%); }
+        .upload-zone { border: 2px dashed #dee2e6; border-radius: 12px; padding: 40px; text-align: center; cursor: pointer; transition: all 0.3s; }
+        .upload-zone:hover, .upload-zone.dragover { border-color: #667eea; background-color: #f0f0ff; }
+        .status-badge { font-size: 0.8rem; }
+        .result-card { max-height: 500px; overflow-y: auto; }
+        pre { background: #f1f3f5; padding: 12px; border-radius: 8px; font-size: 0.85rem; }
+        .nav-link.active { font-weight: 600; }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/ui/"><i class="bi bi-braces-asterisk"></i> Deep Parser</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link {% if active_page == 'upload' %}active{% endif %}" href="/ui/">
+                            <i class="bi bi-cloud-upload"></i> Upload
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if active_page == 'jobs' %}active{% endif %}" href="/ui/jobs">
+                            <i class="bi bi-list-task"></i> Jobs
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if active_page == 'config' %}active{% endif %}" href="/ui/config">
+                            <i class="bi bi-gear"></i> Config
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if active_page == 'search' %}active{% endif %}" href="/ui/search">
+                            <i class="bi bi-search"></i> Search
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if active_page == 'evaluate' %}active{% endif %}" href="/ui/evaluate">
+                            <i class="bi bi-clipboard-data"></i> Evaluate
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if active_page == 'loadtest' %}active{% endif %}" href="/ui/loadtest">
+                            <i class="bi bi-speedometer2"></i> Load Test
+                        </a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/docs" target="_blank"><i class="bi bi-file-code"></i> API Docs</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4 px-4">
+        {% block content %}{% endblock %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function showAlert(message, type = 'success') {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 end-0 m-3`;
+            alertDiv.style.zIndex = '9999';
+            alertDiv.innerHTML = `${message}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+            document.body.appendChild(alertDiv);
+            setTimeout(() => alertDiv.remove(), 5000);
+        }
+
+        function formatJSON(data) {
+            return JSON.stringify(data, null, 2);
+        }
+
+        function statusBadge(status) {
+            const colors = { success: 'success', failed: 'danger', running: 'primary', queued: 'secondary', uploaded: 'info', cleaned: 'info', splitted: 'warning', indexed: 'success' };
+            return `<span class="badge bg-${colors[status] || 'secondary'} status-badge">${status}</span>`;
+        }
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
